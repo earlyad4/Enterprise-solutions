@@ -14,6 +14,7 @@ NexusEnterprise is built with a modular architecture, featuring distinct modules
 -   **R&D (FeatureRND):** Research and development project tracking.
 -   **Manufacturing (FeatureManufacturing):** Production and inventory management.
 -   **Journal (FeatureJournal):** Business logging and record keeping.
+<img width="1502" height="409" alt="Screenshot 2026-01-07 at 5 40 03 PM" src="https://github.com/user-attachments/assets/a4d4e43b-03c3-4681-b316-d5a70398e8ed" />
 
 ## Architecture
 

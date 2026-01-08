@@ -10,8 +10,7 @@ public class Contract: NSManagedObject, Identifiable {
     @NSManaged public var endDate: Date
     @NSManaged public var status: String // "Active", "Draft", "Expired"
     
-    // We will define relationship to Customer in Persistence.swift
-    // @NSManaged public var customer: Customer?
+    @NSManaged public var customer: Customer?
 }
 
 extension Contract {

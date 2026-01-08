@@ -7,129 +7,90 @@ public struct JournalView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \LogEntry.timestamp, ascending: false)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \JournalEntry.createdAt, ascending: false)],
         animation: .default)
-    private var logs: FetchedResults<LogEntry>
+    private var entries: FetchedResults<JournalEntry>
     
-    @State private var newLogContent: String = ""
-    @State private var summary: String = ""
+    @State private var selection: UUID?
     
     public init() {}
     
     public var body: some View {
-        HStack(spacing: 0) {
-            // Main Input and List
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Daily Operational Log")
-                    .font(.largeTitle)
-                    .bold()
-                
-                // Input Area
-                VStack(alignment: .leading) {
-                    Text("New Entry")
-                        .font(.headline)
-                    TextEditor(text: $newLogContent)
-                        .font(.body)
-                        .padding(8)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .cornerRadius(8)
-                        .frame(height: 100)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
-                    
-                    HStack {
-                        Spacer()
-                        Button("Post Entry") {
-                            addLog()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(newLogContent.isEmpty)
-                    }
-                }
-                .padding()
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(12)
-                
-                Divider()
-                
-                // History
-                List(logs) { log in
+        NavigationSplitView {
+            List(entries, selection: $selection) { entry in
+                NavigationLink(value: entry.id) {
                     VStack(alignment: .leading) {
-                        HStack {
-                            Text(log.timestamp.formatted(date: .numeric, time: .shortened))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            if let sentiment = log.sentiment {
-                                Text(sentiment)
-                                    .font(.caption2)
-                                    .padding(2)
-                                    .background(Color.blue.opacity(0.1))
-                                    .cornerRadius(4)
-                            }
-                        }
-                        Text(log.content)
-                            .padding(.top, 2)
+                        Text(entry.title)
+                            .font(.headline)
+                        Text(entry.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .padding()
+            .navigationTitle("Journal")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: addEntry) {
+                        Label("New Note", systemImage: "square.and.pencil")
+                    }
+                }
+            }
+        } detail: {
+            if let selection = selection, let entry = entries.first(where: { $0.id == selection }) {
+                JournalEditorView(entry: entry)
+            } else {
+                ContentUnavailableView("Select a Note", systemImage: "note.text", description: Text("Select an entry to view or edit."))
+            }
+        }
+    }
+    
+    private func addEntry() {
+        withAnimation {
+            let entry = JournalEntry(context: viewContext)
+            entry.id = UUID()
+            entry.title = "New Note"
+            entry.content = ""
+            entry.createdAt = Date()
+            
+            try? viewContext.save()
+            selection = entry.id
+        }
+    }
+}
+
+struct JournalEditorView: View {
+    @ObservedObject var entry: JournalEntry
+    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            TextField("Title", text: Binding(get: { entry.title }, set: { entry.title = $0 }))
+                .font(.title)
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
             
             Divider()
             
-            // AI Sidebar
-            VStack(alignment: .leading, spacing: 20) {
-                Text("AI Consolidator")
-                    .font(.headline)
-                
-                Text("The AI consolidator reads your daily logs and connected documents to generate executive summaries.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-                NexusButton("Generate Daily Briefing") {
-                    generateSummary()
-                }
-                
-                ScrollView {
-                    if !summary.isEmpty {
-                        VStack(alignment: .leading) {
-                            Text(Date().formatted(date: .abbreviated, time: .omitted))
-                                .font(.headline)
-                            Text(summary)
-                                .padding(.top, 4)
-                        }
-                        .padding()
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(8)
-                    }
-                }
-                Spacer()
-            }
-            .frame(width: 300)
+            TextEditor(text: Binding(get: { entry.content ?? "" }, set: {
+                entry.content = $0
+            }))
+            .font(.body)
             .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .scrollContentBackground(.hidden) // Use custom background
+            .background(Color(NSColor.textBackgroundColor))
         }
-        .navigationTitle("Journal")
-    }
-    
-    private func addLog() {
-        withAnimation {
-            let log = LogEntry(context: viewContext)
-            log.id = UUID()
-            log.timestamp = Date()
-            log.content = newLogContent
-            
-            // Simulated Sentiment Analysis (Stub for AI Pipeline)
-            log.sentiment = ["Positive", "Neutral", "Critical"].randomElement()
-            
+        .toolbar {
+            ToolbarItem {
+                Button("Save") {
+                    try? viewContext.save()
+                }
+            }
+        }
+        .onDisappear {
+            // Auto-save on exit
             try? viewContext.save()
-            newLogContent = ""
         }
-    }
-    
-    private func generateSummary() {
-        // Here we would call the AIPipeline service
-        // For now, we simulate a response based on the logs
-        let count = logs.count
-        summary = "Analyzed \(count) log entries. Key themes: High activity in R&D module deployment. Financials show stable growth. Pending contract approvals identified in CRM."
     }
 }

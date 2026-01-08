@@ -11,42 +11,82 @@ public struct MarketingView: View {
         animation: .default)
     private var campaigns: FetchedResults<Campaign>
     
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Segment.estimatedSize, ascending: false)],
-        animation: .default)
-    private var segments: FetchedResults<Segment>
-    
-    @State private var selectedTab = "Campaigns"
+    @State private var selectedTab = "Dashboard"
+    @State private var showingAddCampaign = false
     
     public init() {}
     
     public var body: some View {
         VStack {
             Picker("View", selection: $selectedTab) {
-                Text("Campaigns").tag("Campaigns")
-                Text("Segments").tag("Segments")
+                Text("Dashboard").tag("Dashboard")
+                Text("Campaigns (Promotion)").tag("Campaigns")
+                Text("Products").tag("Products")
+                Text("Analysis").tag("Analysis")
             }
             .pickerStyle(.segmented)
             .padding()
             
-            if selectedTab == "Campaigns" {
+            if selectedTab == "Dashboard" {
+                dashboardView
+            } else if selectedTab == "Campaigns" {
                 campaignList
+            } else if selectedTab == "Products" {
+                ProductView()
             } else {
-                segmentList
+                MarketingAnalysisView()
             }
         }
         .navigationTitle("Marketing")
         .toolbar {
             ToolbarItem {
-                Button(action: {
-                    if selectedTab == "Campaigns" { addCampaign() } else { addSegment() }
-                }) {
-                    Label("Add", systemImage: "plus")
+                if selectedTab == "Campaigns" {
+                     Button(action: { showingAddCampaign = true }) {
+                        Label("Add Campaign", systemImage: "plus")
+                    }
                 }
             }
         }
+        .sheet(isPresented: $showingAddCampaign) {
+            AddCampaignSheet()
+        }
     }
     
+    var dashboardView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    NexusCard {
+                        VStack {
+                            Text("Active Campaigns")
+                                .font(.caption)
+                            Text("\(campaigns.filter { $0.status == "Active" }.count)")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                        }
+                    }
+                    NexusCard {
+                        VStack {
+                            Text("Total Budget")
+                                .font(.caption)
+                            let total = campaigns.reduce(0) { $0 + $1.budget }
+                            Text(total.formatted(.currency(code: "USD")))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                Text("Quick Analysis Preview")
+                    .font(.headline)
+                    .padding(.horizontal)
+                
+                MarketingAnalysisView()
+            }
+        }
+    }
+
     var campaignList: some View {
         List(campaigns) { campaign in
             HStack {
@@ -70,47 +110,60 @@ public struct MarketingView: View {
             }
         }
     }
+}
+
+struct AddCampaignSheet: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
     
-    var segmentList: some View {
-        List(segments) { segment in
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(segment.name)
-                        .font(.headline)
-                    Text(segment.criteria)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    @State private var name: String = ""
+    @State private var type: String = "Email"
+    @State private var budget: Double = 1000.0
+    @State private var status: String = "Planning"
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Campaign Name", text: $name)
+                Picker("Type", selection: $type) {
+                    Text("Email").tag("Email")
+                    Text("Social Media").tag("Social Media")
+                    Text("Print").tag("Print")
+                    Text("TV/Video").tag("TV/Video")
                 }
-                Spacer()
-                Text("\(segment.estimatedSize) users")
-                    .fontWeight(.bold)
+                TextField("Budget", value: $budget, format: .currency(code: "USD"))
+                Picker("Status", selection: $status) {
+                    Text("Planning").tag("Planning")
+                    Text("Active").tag("Active")
+                    Text("Completed").tag("Completed")
+                }
             }
+            .navigationTitle("New Campaign")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        addCampaign()
+                        dismiss()
+                    }
+                    .disabled(name.isEmpty)
+                }
+            }
+            .frame(minWidth: 300, minHeight: 250)
         }
     }
     
     private func addCampaign() {
-        withAnimation {
-            let c = Campaign(context: viewContext)
-            c.id = UUID()
-            c.name = "New Campaign Q3"
-            c.type = "Email"
-            c.status = "Planning"
-            c.budget = 5000.0
-            c.startDate = Date()
-            
-            try? viewContext.save()
-        }
-    }
-    
-    private func addSegment() {
-        withAnimation {
-            let s = Segment(context: viewContext)
-            s.id = UUID()
-            s.name = "High Value Customers"
-            s.criteria = "LTV > $10,000"
-            s.estimatedSize = 150
-            
-            try? viewContext.save()
-        }
+        let c = Campaign(context: viewContext)
+        c.id = UUID()
+        c.name = name
+        c.type = type
+        c.status = status
+        c.budget = budget
+        c.startDate = Date()
+        
+        try? viewContext.save()
     }
 }

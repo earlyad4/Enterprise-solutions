@@ -464,7 +464,96 @@ public class PersistenceController {
         
         crossLinkEntity.properties = [clIdAttr, clSourceAttr, clTargetAttr, clRelTypeAttr, clWeightAttr, clCreatedAttr]
         
-        model.entities = [customerEntity, contractEntity, invoiceEntity, ledgerEntity, projectEntity, logEntity, campaignEntity, segmentEntity, documentEntity, artifactEntity, crossLinkEntity]
+        // PRODUCT (Marketing 4Ps)
+        let productEntity = NSEntityDescription()
+        productEntity.name = "Product"
+        productEntity.managedObjectClassName = "Product"
+        
+        let prodIdAttr = NSAttributeDescription()
+        prodIdAttr.name = "id"
+        prodIdAttr.attributeType = .UUIDAttributeType
+        prodIdAttr.isOptional = false
+        
+        let prodNameAttr = NSAttributeDescription()
+        prodNameAttr.name = "name"
+        prodNameAttr.attributeType = .stringAttributeType
+        prodNameAttr.isOptional = false
+        
+        let prodDescAttr = NSAttributeDescription()
+        prodDescAttr.name = "productDescription"
+        prodDescAttr.attributeType = .stringAttributeType
+        prodDescAttr.isOptional = true
+        
+        let prodPriceAttr = NSAttributeDescription()
+        prodPriceAttr.name = "price"
+        prodPriceAttr.attributeType = .doubleAttributeType
+        prodPriceAttr.defaultValue = 0.0
+        prodPriceAttr.isOptional = false
+        
+        let prodPosAttr = NSAttributeDescription()
+        prodPosAttr.name = "positioning"
+        prodPosAttr.attributeType = .stringAttributeType
+        prodPosAttr.isOptional = true
+        
+        productEntity.properties = [prodIdAttr, prodNameAttr, prodDescAttr, prodPriceAttr, prodPosAttr]
+        
+        // JOURNAL ENTRY
+        let journalEntryEntity = NSEntityDescription()
+        journalEntryEntity.name = "JournalEntry"
+        journalEntryEntity.managedObjectClassName = "JournalEntry"
+        
+        let jeIdAttr = NSAttributeDescription()
+        jeIdAttr.name = "id"
+        jeIdAttr.attributeType = .UUIDAttributeType
+        jeIdAttr.isOptional = false
+        
+        let jeTitleAttr = NSAttributeDescription()
+        jeTitleAttr.name = "title"
+        jeTitleAttr.attributeType = .stringAttributeType
+        jeTitleAttr.isOptional = false
+        jeTitleAttr.defaultValue = "New Note"
+        
+        let jeContentAttr = NSAttributeDescription()
+        jeContentAttr.name = "content"
+        jeContentAttr.attributeType = .stringAttributeType
+        jeContentAttr.isOptional = true
+        
+        let jeCreatedAttr = NSAttributeDescription()
+        jeCreatedAttr.name = "createdAt"
+        jeCreatedAttr.attributeType = .dateAttributeType
+        jeCreatedAttr.isOptional = false
+        
+        journalEntryEntity.properties = [jeIdAttr, jeTitleAttr, jeContentAttr, jeCreatedAttr]
+        
+        // CUSTOM DEPARTMENT
+        let customDeptEntity = NSEntityDescription()
+        customDeptEntity.name = "CustomDepartment"
+        customDeptEntity.managedObjectClassName = "CustomDepartment"
+        
+        let cdIdAttr = NSAttributeDescription()
+        cdIdAttr.name = "id"
+        cdIdAttr.attributeType = .UUIDAttributeType
+        cdIdAttr.isOptional = false
+        
+        let cdNameAttr = NSAttributeDescription()
+        cdNameAttr.name = "name"
+        cdNameAttr.attributeType = .stringAttributeType
+        cdNameAttr.isOptional = false
+        
+        let cdIconAttr = NSAttributeDescription()
+        cdIconAttr.name = "iconName"
+        cdIconAttr.attributeType = .stringAttributeType
+        cdIconAttr.isOptional = false
+        cdIconAttr.defaultValue = "folder"
+        
+        let cdCreatedAttr = NSAttributeDescription()
+        cdCreatedAttr.name = "createdAt"
+        cdCreatedAttr.attributeType = .dateAttributeType
+        cdCreatedAttr.isOptional = false
+        
+        customDeptEntity.properties = [cdIdAttr, cdNameAttr, cdIconAttr, cdCreatedAttr]
+        
+        model.entities = [customerEntity, contractEntity, invoiceEntity, ledgerEntity, projectEntity, logEntity, campaignEntity, segmentEntity, documentEntity, artifactEntity, crossLinkEntity, productEntity, journalEntryEntity, customDeptEntity]
         return model
     }
 }

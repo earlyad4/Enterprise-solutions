@@ -6,14 +6,15 @@ import NexusUI
 public struct CRMView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
-    // We need to verify if the Entity name matches what we put in Persistence.swift
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Customer.name, ascending: true)],
         animation: .default)
     private var customers: FetchedResults<Customer>
     
     @State private var selection: UUID?
-
+    @State private var showingAddCustomer = false
+    @State private var showingAddContract = false
+    
     public init() {}
     
     public var body: some View {
@@ -26,34 +27,26 @@ public struct CRMView: View {
             .navigationTitle("Customers")
             .toolbar {
                 ToolbarItem {
-                    Button(action: addCustomer) {
-                        Label("Add Item", systemImage: "plus")
+                    Button(action: { showingAddCustomer = true }) {
+                        Label("Add Customer", systemImage: "plus")
                     }
                 }
             }
         } detail: {
             if let selection = selection, let customer = customers.first(where: { $0.id == selection }) {
-                 CustomerDetailView(customer: customer)
+                 CustomerDetailView(customer: customer, showingAddContract: $showingAddContract)
             } else {
                 Text("Select a customer")
                     .font(.title)
                     .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private func addCustomer() {
-        withAnimation {
-            let newCustomer = Customer(context: viewContext)
-            newCustomer.id = UUID()
-            newCustomer.name = "New Customer \(Date().timeIntervalSince1970)"
-            newCustomer.email = "test@example.com"
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                print("Unresolved error \(nsError), \(nsError.userInfo)")
+        .sheet(isPresented: $showingAddCustomer) {
+            AddCustomerSheet()
+        }
+        .sheet(isPresented: $showingAddContract) {
+            if let selection = selection, let customer = customers.first(where: { $0.id == selection }) {
+                AddContractSheet(customer: customer)
             }
         }
     }
@@ -61,8 +54,7 @@ public struct CRMView: View {
 
 struct CustomerDetailView: View {
     let customer: Customer
-    
-    // We would need the context to save changes to stage/contracts
+    @Binding var showingAddContract: Bool
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
@@ -120,7 +112,7 @@ struct CustomerDetailView: View {
                         Text("Contracts")
                             .font(.headline)
                         Spacer()
-                        Button(action: addContract) {
+                        Button(action: { showingAddContract = true }) {
                             Label("Add Contract", systemImage: "plus")
                         }
                     }
@@ -159,22 +151,111 @@ struct CustomerDetailView: View {
             .padding()
         }
     }
+}
+
+struct AddCustomerSheet: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var name: String = ""
+    @State private var email: String = ""
+    @State private var stage: String = "Lead"
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Name", text: $name)
+                TextField("Email", text: $email)
+                Picker("Stage", selection: $stage) {
+                    Text("Lead").tag("Lead")
+                    Text("Prospect").tag("Prospect")
+                    Text("Customer").tag("Customer")
+                }
+            }
+            .navigationTitle("New Customer")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        addCustomer()
+                        dismiss()
+                    }
+                    .disabled(name.isEmpty)
+                }
+            }
+            .frame(minWidth: 300, minHeight: 200)
+        }
+    }
+    
+    private func addCustomer() {
+        let newCustomer = Customer(context: viewContext)
+        newCustomer.id = UUID()
+        newCustomer.name = name
+        newCustomer.email = email
+        newCustomer.lifecycleStage = stage
+        newCustomer.lifetimeValue = 0
+        
+        try? viewContext.save()
+    }
+}
+
+struct AddContractSheet: View {
+    let customer: Customer
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var title: String = "New Contract"
+    @State private var value: Double = 0.0
+    @State private var status: String = "Draft"
+    @State private var startDate = Date()
+    @State private var endDate = Date().addingTimeInterval(365*24*60*60)
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Title", text: $title)
+                TextField("Value", value: $value, format: .currency(code: "USD"))
+                Picker("Status", selection: $status) {
+                    Text("Draft").tag("Draft")
+                    Text("Active").tag("Active")
+                    Text("Expired").tag("Expired")
+                }
+                DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                DatePicker("End Date", selection: $endDate, displayedComponents: .date)
+            }
+            .navigationTitle("New Contract")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        addContract()
+                        dismiss()
+                    }
+                }
+            }
+            .frame(minWidth: 300, minHeight: 300)
+        }
+    }
     
     private func addContract() {
-        withAnimation {
-            let newContract = Contract(context: viewContext)
-            newContract.id = UUID()
-            newContract.title = "New Agreement"
-            newContract.value = 10000.0
-            newContract.startDate = Date()
-            newContract.endDate = Date().addingTimeInterval(365*24*60*60)
-            newContract.status = "Draft"
-            newContract.customer = customer
-            
-            // Auto update LTV
-            customer.lifetimeValue += newContract.value
-            
-            try? viewContext.save()
+        let newContract = Contract(context: viewContext)
+        newContract.id = UUID()
+        newContract.title = title
+        newContract.value = value
+        newContract.startDate = startDate
+        newContract.endDate = endDate
+        newContract.status = status
+        newContract.customer = customer
+        
+        // Update Customer LTV if active
+        if status == "Active" {
+            customer.lifetimeValue += value
         }
+        
+        try? viewContext.save()
     }
 }
